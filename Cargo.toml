@@ -1,0 +1,29 @@
+[package]
+name = "syswatcher"
+version = "0.1.0"
+edition = "2021"
+
+
+[[bin]]
+name = "syswatcher"
+path = "src/main.rs"
+
+[workspace]
+members=["api", "shared"]
+
+[workspace.dependencies]
+ratatui = {version = "0.28.1",features = ["unstable"]}
+strum = "0.26.3"
+sysinfo = "0.31.4"
+tokio = {version = "1.40.0",features = ["full"]}
+tui-scrollview = "0.4.0"
+thiserror = "1.0.64"
+api = {path = "./api"}
+shared = {path = "./shared"}
+async-trait = "0.1.83"
+
+[dependencies]
+api.workspace = true
+ratatui.workspace = true
+tokio.workspace = true
+shared.workspace = true

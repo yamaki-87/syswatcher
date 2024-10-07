@@ -1,0 +1,13 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ratatui.workspace = true
+strum.workspace = true
+tokio.workspace = true
+tui-scrollview.workspace = true
+shared.workspace = true
+async-trait.workspace = true
+sysinfo.workspace = true
