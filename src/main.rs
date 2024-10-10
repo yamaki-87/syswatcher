@@ -16,8 +16,9 @@ pub async fn bootstrap()->AppResult<()>{
     stdout().execute(EnterAlternateScreen)?;
 
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+    let tui = Box::new(Tui::default());
+    let app_result=tui.run(&mut terminal).await;
 
-    let app_result= Tui::default().run(&mut terminal).await;
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 

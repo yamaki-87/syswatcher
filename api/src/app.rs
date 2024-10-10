@@ -1,7 +1,8 @@
 use async_trait::async_trait;
+use futures::StreamExt;
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    crossterm::event::{self, Event, EventStream, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     prelude::*,
     style::{Modifier, Style, Stylize},
@@ -9,29 +10,42 @@ use ratatui::{
     text::{Line, Text},
     widgets::{
         block::{Position, Title},
-        Block, Gauge, Padding, Paragraph, Tabs, Widget, *,
+        Block, Gauge, Padding, Paragraph, Tabs, Widget, Wrap,
     },
     DefaultTerminal,
 };
-
 
 use shared::error::{AppError, AppResult};
 use strum::IntoEnumIterator;
 use tui_scrollview::{ScrollView, ScrollViewState};
 
-use crate::{system::{SysData, SysInfo}, widget::SelectedTab};
+use crate::{
+    system::{SysData, SysInfo},
+    widget::SelectedTab,
+};
 
 macro_rules! title_block {
-    ($title:expr)=>{
-        title_block!($title,2)
+    ($title:expr) => {
+        title_block!($title, 2)
     };
-    ($title:expr,$padding:expr) => {
+    ($title:expr,$padding:expr) => {{
+        let title = Title::from($title.bold().blue()).alignment(ratatui::layout::Alignment::Center);
+        Block::bordered()
+            .title(title)
+            .border_set(border::EMPTY)
+            .padding(Padding::vertical($padding))
+    }};
+}
+
+macro_rules! line {
+    ($($arg:expr),*) => {
         {
-            let title = Title::from($title.bold().blue()).alignment(ratatui::layout::Alignment::Center);
-            Block::bordered()
-                .title(title)
-                .border_set(border::EMPTY)
-                .padding(Padding::vertical($padding))
+            let mut temp = vec![];
+            $(
+                temp.push($arg);
+            )*
+
+            Line::from(temp)
         }
     };
 }
@@ -44,7 +58,7 @@ pub struct Tui {
     selected_tab: SelectedTab,
     scrollview_state: ScrollViewState,
 }
-#[derive(Default,PartialEq, Eq,)]
+#[derive(Default, PartialEq, Eq)]
 pub enum AppState {
     #[default]
     RUNNING,
@@ -53,30 +67,36 @@ pub enum AppState {
 
 #[async_trait]
 pub trait Application {
-    async fn run(mut self,terminal:&mut DefaultTerminal)->AppResult<()>;
-    fn handle_events(&mut self)->AppResult<()>;
-    fn handle_key_event(&mut self,key_event:KeyEvent);
+    async fn run(mut self, terminal: &mut DefaultTerminal) -> AppResult<()>;
+    fn handle_events(&mut self,event:&Event) -> AppResult<()>;
+    fn handle_key_event(&mut self, key_event: &KeyEvent);
     fn update(&mut self);
 }
 
 #[async_trait]
 impl Application for Tui {
     async fn run(mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
+        let mut events= EventStream::new();
+
         while self.is_running() {
-            self.handle_events()?;
-
-            self.update();
-            terminal
-                .draw(|frame| frame.render_widget(&mut self, frame.area()))?;
-
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            tokio::select! {
+                _ = interval.tick()=>{
+                    self.update(); 
+                    terminal
+                        .draw(|frame| frame.render_widget(&mut self, frame.area()))?;
+                }
+                Some(Ok(event))= events.next()=>{
+                    self.handle_events(&event)?;
+                }
+            }
         }
 
         Ok(())
     }
 
-    fn handle_events(&mut self) -> AppResult<()> {
-        match event::read()? {
+    fn handle_events(&mut self,event:&Event) -> AppResult<()> {
+        match event {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 self.handle_key_event(key_event)
             }
@@ -85,7 +105,7 @@ impl Application for Tui {
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
+    fn handle_key_event(&mut self, key_event: &KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
             KeyCode::Char('r') => self.refresh(),
@@ -116,7 +136,6 @@ impl Application for Tui {
     }
 }
 
-
 impl Tui {
     fn draw_os_info(&self, area: Rect, buf: &mut Buffer) {
         let title = Title::from(Line::from(" OS Info ".blue().bold()));
@@ -126,24 +145,24 @@ impl Tui {
             .border_set(border::THICK);
 
         let os_info = Text::from(vec![
-            Line::from(vec!["OS: ".into(), self.sysdata.get_os_long_ver().green()]),
-            Line::from(vec!["HOST: ".into(), self.sysdata.get_host().green()]),
-            Line::from(vec![
+            line!("OS: ".into(), self.sysdata.get_os_long_ver().green()),
+            line!("HOST: ".into(), self.sysdata.get_host().green()),
+            line!(
                 "Uptime: ".into(),
-                format!("{}", self.sysdata.get_uptime()).green(),
-            ]),
-            Line::from(vec![
+                self.sysdata.get_uptime().to_string().green()
+            ),
+            line!(
                 "Boot Time: ".into(),
-                format!("{}", self.sysdata.get_boot_time()).green(),
-            ]),
-            Line::from(vec![
+                self.sysdata.get_boot_time().to_string().green()
+            ),
+            line!(
                 "CPU Architecture: ".into(),
-                self.sysdata.get_cpu_arch().green(),
-            ]),
-            Line::from(vec![
+                self.sysdata.get_cpu_arch().green()
+            ),
+            line!(
                 "Kernel Version: ".into(),
-                self.sysdata.get_kernel_ver().green(),
-            ]),
+                self.sysdata.get_kernel_ver().green()
+            ),
         ]);
 
         Paragraph::new(os_info)
@@ -174,7 +193,7 @@ impl Tui {
         let mem = self.sysinfos.get_memory();
 
         Gauge::default()
-            .block(title_block!(" Memory Usage ",1))
+            .block(title_block!(" Memory Usage ", 1))
             .gauge_style(
                 Style::default()
                     .fg(ratatui::style::Color::Blue)
@@ -250,7 +269,7 @@ impl Tui {
         self.sysdata = SysData::default();
     }
 
-    fn is_running(&self)->bool{
+    fn is_running(&self) -> bool {
         self.state == AppState::RUNNING
     }
 }
@@ -297,12 +316,3 @@ impl Widget for &mut Tui {
         }
     }
 }
-
-fn title_block(title: &str) -> Block {
-    let title = Title::from(title.bold().blue()).alignment(ratatui::layout::Alignment::Center);
-    Block::bordered()
-        .title(title)
-        .border_set(border::EMPTY)
-        .padding(Padding::vertical(2))
-}
-

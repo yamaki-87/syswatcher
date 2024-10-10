@@ -13,6 +13,7 @@ members=["api", "shared"]
 
 [workspace.dependencies]
 ratatui = {version = "0.28.1",features = ["unstable"]}
+crossterm = { version = "0.28.1", features = ["event-stream"] }
 strum = "0.26.3"
 sysinfo = "0.31.4"
 tokio = {version = "1.40.0",features = ["full"]}
@@ -21,6 +22,7 @@ thiserror = "1.0.64"
 api = {path = "./api"}
 shared = {path = "./shared"}
 async-trait = "0.1.83"
+futures = "0.3.31"
 
 [dependencies]
 api.workspace = true

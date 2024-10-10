@@ -11,3 +11,5 @@ tui-scrollview.workspace = true
 shared.workspace = true
 async-trait.workspace = true
 sysinfo.workspace = true
+crossterm.workspace = true
+futures.workspace = true
