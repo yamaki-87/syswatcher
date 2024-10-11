@@ -1,0 +1,4 @@
+
+[tasks.testapi]
+command="cargo"
+args=["test","--package","api","--show-output"]

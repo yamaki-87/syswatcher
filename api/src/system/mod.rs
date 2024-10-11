@@ -1,20 +1,33 @@
 use std::collections::HashMap;
 
-use sysinfo::{Networks, Pid, Process, System};
+use shared::error::{AppError, AppResult};
+use sysinfo::{Disks, Networks, Pid, Process, System};
+
+pub mod cpu;
+pub mod memory;
+pub mod disk;
+pub mod prelude;
 
 const UNKONW: &str = "unkonw";
 
 
 pub struct SysInfo{
     system:System,
+    disks:Disks,
 }
 
 impl SysInfo {
+
+    const BYTE:u64 = 1024;
+    const GIB:u64 = 1024*1024*1024;
+
     fn new() -> Self {
         let mut sys = System::new_all();
         sys.refresh_all();
 
-        Self { system: sys }
+        let disks = Disks::new_with_refreshed_list();
+
+        Self { system: sys ,disks}
     }
 
     #[inline]
@@ -22,33 +35,19 @@ impl SysInfo {
         self.system.refresh_all();
     }
 
-    #[inline]
-    fn refresh_cpu(&mut self) {
-        self.system.refresh_cpu_usage();
-    }
-
-    #[inline]
-    fn refresh_mem(&mut self) {
-        self.system.refresh_memory();
-    }
-
-    #[inline]
-    pub fn get_memory(&self) -> f64 {
-        self.system.used_memory() as f64 / self.system.total_memory() as f64 * 100.
-    }
-
-    #[inline]
-    pub fn get_cpu(&self) -> f32 {
-        self.system.global_cpu_usage()
-    }
-
-    pub fn get_cpu_2(&self) -> f32 {
-        self.system.cpus().iter().map(|c| c.cpu_usage()).sum()
-    }
-
     pub fn get_processes(&self) -> &HashMap<Pid, Process> {
         self.system.processes()
     }
+
+    pub fn get_swap(&self,)->f64{
+        self.system.used_swap() as f64 / self.system.total_swap() as f64 * 100.
+    }
+
+
+    pub fn get_total_swap(&self)->u64{
+        self.system.total_swap() / Self::GIB
+    }
+
 }
 
 impl Default for SysInfo {
@@ -163,6 +162,52 @@ fn get_kernel_ver() -> String {
         UNKONW.into()
     }
 }
+
+
 pub fn get_networks_data() -> Networks {
     Networks::new_with_refreshed_list()
+}
+
+pub fn supported()->AppResult<()>{
+    if sysinfo::IS_SUPPORTED_SYSTEM{
+        Ok(())
+    }else{
+        Err(AppError::NoSupported)
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use shared::error::AppResult;
+    use sysinfo::{Networks, System};
+
+    #[test]
+    fn swap()->AppResult<()>{
+        let mut sys= System::new_all();
+        sys.refresh_all();
+        println!("free: {}",&sys.free_swap() / 1024 * 1024 * 1024);
+        println!("used: {}",&sys.used_swap());
+        println!("total: {}",&sys.total_swap() / (1024 * 1024 *1024));
+
+        Ok(())
+    }
+
+    #[test]
+    fn network()->AppResult<()>{
+        let network= Networks::new_with_refreshed_list();
+        for n in network.list(){
+            println!("{:?}",n);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn disk()->AppResult<()>{
+        use sysinfo::Disks;
+        let disks = Disks::new_with_refreshed_list();
+        for d in disks.list(){
+            println!("{:?}",d);
+        }
+        Ok(())
+    }
 }

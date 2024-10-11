@@ -1,3 +1,5 @@
+
+
 use async_trait::async_trait;
 use futures::StreamExt;
 use ratatui::{
@@ -5,7 +7,7 @@ use ratatui::{
     crossterm::event::{self, Event, EventStream, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     prelude::*,
-    style::{Modifier, Style, Stylize},
+    style::{Modifier, Style,Stylize},
     symbols::border::{self},
     text::{Line, Text},
     widgets::{
@@ -20,8 +22,9 @@ use strum::IntoEnumIterator;
 use tui_scrollview::{ScrollView, ScrollViewState};
 
 use crate::{
-    system::{SysData, SysInfo},
+    system::{SysData, SysInfo,prelude::*},
     widget::SelectedTab,
+    
 };
 
 macro_rules! title_block {
@@ -128,7 +131,7 @@ impl Application for Tui {
     }
 
     fn update(&mut self) {
-        if self.state != AppState::RUNNING {
+        if !self.is_running(){
             return;
         }
 
@@ -163,9 +166,23 @@ impl Tui {
                 "Kernel Version: ".into(),
                 self.sysdata.get_kernel_ver().green()
             ),
+            line!("Total Memory: ".into(),self.sysinfos.get_total_memory().to_string().green()),
+            line!("Total Swap: ".into(),self.sysinfos.get_total_swap().to_string().green()),
         ]);
 
         Paragraph::new(os_info)
+            .left_aligned()
+            .block(block)
+            .render(area, buf);
+    }
+
+    fn render_disk_info(&self,area: Rect,buf: &mut Buffer){
+        let disk_info = Text::from(self.sysinfos.get_disks_info().into_iter().map(Line::from).collect::<Vec<Line<'_>>>());
+        let block = Block::bordered()
+            .title(Title::from(Line::from(" Disk Info ".red().bold())))
+            .border_set(border::THICK);
+
+        Paragraph::new(disk_info)
             .left_aligned()
             .block(block)
             .render(area, buf);
@@ -203,6 +220,23 @@ impl Tui {
             .ratio(mem / 100.)
             .use_unicode(true)
             .label(format!("{:.2}%", mem))
+            .render(area, buf);
+    }
+
+    fn render_swap_info(&self,area: Rect,buf: &mut Buffer){
+        let swap = self.sysinfos.get_swap();
+
+        Gauge::default()
+            .block(title_block!(" Swap Usage ",1))
+            .gauge_style(
+                Style::default()
+                    .fg(ratatui::style::Color::Blue)
+                    .bg(ratatui::style::Color::White)
+                    .add_modifier(Modifier::ITALIC)
+            )
+            .ratio(swap / 100.)
+            .use_unicode(true)
+            .label(format!("{:.2}%",swap))
             .render(area, buf);
     }
 
@@ -299,12 +333,14 @@ impl Widget for &mut Tui {
                 .areas(area);
 
                 let [left, right] = Layout::horizontal([Constraint::Fill(1); 2]).areas(main);
-                let [mem_gauge_area, cpu_gauge_area, _, _] =
+                let [mem_gauge_area, cpu_gauge_area, swap_gauge_area, disk_info_area] =
                     Layout::vertical([Constraint::Ratio(1, 4); 4]).areas(left);
 
                 self.render_tabs(tab_footer, buf);
                 self.draw_mem_info(mem_gauge_area, buf);
                 self.render_cpu_info(cpu_gauge_area, buf);
+                self.render_swap_info(swap_gauge_area, buf);
+                self.render_disk_info(disk_info_area, buf);
                 self.draw_os_info(right, buf);
                 self.draw_bottom(bottom, buf);
             }

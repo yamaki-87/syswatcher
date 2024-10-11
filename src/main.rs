@@ -8,6 +8,7 @@ use api::app::{Application, Tui};
 
 #[tokio::main]
 async fn main()->AppResult<()>{
+    api::system::supported()?;
     bootstrap().await
 }
 
