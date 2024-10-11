@@ -1,5 +1,4 @@
 use super::SysInfo;
-use std::io::prelude::*;
 pub trait Cpu {
     fn refresh_cpu(&mut self,);
     fn get_cpu(&self)->f32;

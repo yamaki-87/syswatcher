@@ -20,7 +20,7 @@ impl Disk for SysInfo {
                 let available_usage = d.available_space() / Self::GIB;
                 let total_usage = d.total_space() / Self::GIB;
                 format!(
-                    "{:?}:{:?}:{:?}:{}/{}",
+                    "{:?}:{:?}:{:?}:{}/{} GB",
                     d.name(),
                     d.mount_point(),
                     d.file_system(),
