@@ -1,5 +1,5 @@
 use sysinfo::Disks;
-
+use shared::util::DisplayOsStr;
 use super::SysInfo;
 
 pub trait Disk {
@@ -20,10 +20,10 @@ impl Disk for SysInfo {
                 let available_usage = d.available_space() / Self::GIB;
                 let total_usage = d.total_space() / Self::GIB;
                 format!(
-                    "{:?}:{:?}:{:?}:{}/{} GB",
-                    d.name(),
-                    d.mount_point(),
-                    d.file_system(),
+                    "{}:{}:{}:{}/{} GB",
+                    DisplayOsStr::new(d.name()),
+                    d.mount_point().display(),
+                    DisplayOsStr::new(d.file_system()),
                     available_usage,
                     total_usage,
                 )
