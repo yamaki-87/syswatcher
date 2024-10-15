@@ -4,22 +4,22 @@ use shared::error::{AppError, AppResult};
 use sysinfo::{Disks, Networks, Pid, Process, System};
 
 pub mod cpu;
-pub mod memory;
 pub mod disk;
+pub mod memory;
+pub mod network;
 pub mod prelude;
 
 const UNKONW: &str = "unkonw";
 
-
-pub struct SysInfo{
-    system:System,
-    disks:Disks,
+pub struct SysInfo {
+    system: System,
+    disks: Disks,
+    networks: Networks,
 }
 
 impl SysInfo {
-
-    const BYTE:u64 = 1024;
-    const GIB:u64 = 1024*1024*1024;
+    const BYTE: u64 = 1024;
+    const GIB: u64 = 1024 * 1024 * 1024;
 
     fn new() -> Self {
         let mut sys = System::new_all();
@@ -27,7 +27,12 @@ impl SysInfo {
 
         let disks = Disks::new_with_refreshed_list();
 
-        Self { system: sys ,disks}
+        let networks = Networks::new_with_refreshed_list();
+        Self {
+            system: sys,
+            disks,
+            networks,
+        }
     }
 
     #[inline]
@@ -39,15 +44,13 @@ impl SysInfo {
         self.system.processes()
     }
 
-    pub fn get_swap(&self,)->f64{
+    pub fn get_swap(&self) -> f64 {
         self.system.used_swap() as f64 / self.system.total_swap() as f64 * 100.
     }
 
-
-    pub fn get_total_swap(&self)->u64{
+    pub fn get_total_swap(&self) -> u64 {
         self.system.total_swap() / Self::GIB
     }
-
 }
 
 impl Default for SysInfo {
@@ -55,16 +58,16 @@ impl Default for SysInfo {
         SysInfo::new()
     }
 }
-pub struct SysData{
-    host:String,
-    cpu_arch:String,
-    boot_time:u64,
-    uptime:u64,
-    long_os_ver:String,
-    kernel_ver:String,
+pub struct SysData {
+    host: String,
+    cpu_arch: String,
+    boot_time: u64,
+    uptime: u64,
+    long_os_ver: String,
+    kernel_ver: String,
 }
 impl SysData {
-    fn new()->Self {
+    fn new() -> Self {
         Self {
             host: get_host(),
             cpu_arch: get_cpu_arch(),
@@ -100,9 +103,8 @@ impl SysData {
     }
 }
 
-
 impl Default for SysData {
-fn default() -> Self {
+    fn default() -> Self {
         SysData::new()
     }
 }
@@ -163,50 +165,53 @@ fn get_kernel_ver() -> String {
     }
 }
 
-
 pub fn get_networks_data() -> Networks {
-    Networks::new_with_refreshed_list()
+    let net = Networks::new_with_refreshed_list();
+    for (str, n) in net.list() {}
+    net
 }
 
-pub fn supported()->AppResult<()>{
-    if sysinfo::IS_SUPPORTED_SYSTEM{
+pub fn supported() -> AppResult<()> {
+    if sysinfo::IS_SUPPORTED_SYSTEM {
         Ok(())
-    }else{
+    } else {
         Err(AppError::NoSupported)
     }
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use shared::error::AppResult;
     use sysinfo::{Networks, System};
 
     #[test]
-    fn swap()->AppResult<()>{
-        let mut sys= System::new_all();
+    fn swap() -> AppResult<()> {
+        let mut sys = System::new_all();
         sys.refresh_all();
-        println!("free: {}",&sys.free_swap() / 1024 * 1024 * 1024);
-        println!("used: {}",&sys.used_swap());
-        println!("total: {}",&sys.total_swap() / (1024 * 1024 *1024));
+        println!("free: {}", &sys.free_swap() / 1024 * 1024 * 1024);
+        println!("used: {}", &sys.used_swap());
+        println!("total: {}", &sys.total_swap() / (1024 * 1024 * 1024));
 
         Ok(())
     }
 
     #[test]
-    fn network()->AppResult<()>{
-        let network= Networks::new_with_refreshed_list();
-        for n in network.list(){
-            println!("{:?}",n);
+    fn network() -> AppResult<()> {
+        let network = Networks::new_with_refreshed_list();
+        for n in network.list() {
+            println!("{:?}", n);
+            println!("ip address = {:?}", n.1.ip_networks());
+            println!("mac address = {}", n.1.mac_address());
         }
         Ok(())
     }
 
     #[test]
-    fn disk()->AppResult<()>{
+    fn disk() -> AppResult<()> {
         use sysinfo::Disks;
         let disks = Disks::new_with_refreshed_list();
-        for d in disks.list(){
-            println!("{:?}",d);
+        for d in disks.list() {
+            println!("{:?}", d);
         }
         Ok(())
     }

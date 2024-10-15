@@ -266,6 +266,23 @@ impl Tui {
             .render(area, buf);
     }
 
+    fn render_network_info(&self,area: Rect,buf: &mut Buffer){
+        let line = Text::from(
+            self.sysinfos
+                .get_networks_info()
+                .join("\n")
+        );
+
+        Paragraph::new(line)
+            .block(
+                Block::bordered()
+                    .border_set(border::THICK)
+                    .title(" Network ")
+                    .title_alignment(Alignment::Center),
+            )
+            .render(area, buf);
+    }
+
     fn render_processes_scrollview(&self, buf: &mut Buffer) {
         let area = buf.area;
 
@@ -336,12 +353,15 @@ impl Widget for &mut Tui {
                 let [mem_gauge_area, cpu_gauge_area, swap_gauge_area, disk_info_area] =
                     Layout::vertical([Constraint::Ratio(1, 4); 4]).areas(left);
 
+                let [os_info_area,network_info_area] = Layout::vertical([Constraint::Percentage(70),Constraint::Percentage(30)]).areas(right);
+
                 self.render_tabs(tab_footer, buf);
                 self.draw_mem_info(mem_gauge_area, buf);
                 self.render_cpu_info(cpu_gauge_area, buf);
                 self.render_swap_info(swap_gauge_area, buf);
                 self.render_disk_info(disk_info_area, buf);
-                self.draw_os_info(right, buf);
+                self.draw_os_info(os_info_area, buf);
+                self.render_network_info(network_info_area, buf);
                 self.draw_bottom(bottom, buf);
             }
             SelectedTab::Process => {
