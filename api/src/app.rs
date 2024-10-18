@@ -1,5 +1,4 @@
 
-
 use async_trait::async_trait;
 use futures::StreamExt;
 use ratatui::{
@@ -267,10 +266,18 @@ impl Tui {
     }
 
     fn render_network_info(&self,area: Rect,buf: &mut Buffer){
+
+        let test = self.sysinfos.get_networks_test();
         let line = Text::from(
-            self.sysinfos
-                .get_networks_info()
-                .join("\n")
+            test.iter().map(|n|{
+                let mut temp= vec![Line::from(n.get_name().as_str().green().bold())];
+                temp.push(line!("Mac Address:".into(),n.get_mac_addr().to_string().white()));
+                if let Some(ip) = n.get_ip_addr(){
+                    temp.push(Line::from(ip.ipv4.as_str()));
+                    temp.push(Line::from(ip.ipv6.as_str()));
+                }
+                temp
+            }).flatten().collect::<Vec<Line<'_>>>()
         );
 
         Paragraph::new(line)
@@ -372,3 +379,4 @@ impl Widget for &mut Tui {
         }
     }
 }
+

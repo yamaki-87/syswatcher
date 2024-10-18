@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use shared::error::{AppError, AppResult};
-use sysinfo::{Disks, Networks, Pid, Process, System};
+use sysinfo::{Disks, IpNetwork, MacAddr, Networks, Pid, Process, System};
 
 pub mod cpu;
 pub mod disk;
@@ -216,3 +216,4 @@ mod test {
         Ok(())
     }
 }
+
