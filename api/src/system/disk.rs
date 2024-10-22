@@ -31,3 +31,21 @@ impl Disk for SysInfo {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod test{
+    use shared::error::AppResult;
+
+    use crate::system::SysInfo;
+    use super::*;
+
+    #[test]
+    fn disk_info_test()->AppResult<()>{
+        let system = SysInfo::new();
+        let info=system.get_disks_info();
+        info.iter().for_each(|e| {
+            assert_ne!("",e);
+        });
+        Ok(())
+    }
+}

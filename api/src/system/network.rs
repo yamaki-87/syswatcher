@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use sysinfo::{IpNetwork, MacAddr};
 
@@ -37,10 +36,10 @@ impl NetworkData {
 }
 
 pub trait Networks {
-    #[warn(non_upper_case_globals)]
-    const HAVE_IPv6_IPv4:usize = 2;
+    const HAVE_IPV6_IPV4:usize = 2;
+    
     fn refresh_networks(&mut self);
-    fn get_networks_test(&self)->Vec<NetworkData>;
+    fn get_networks_info(&self)->Vec<NetworkData>;
 }
 
 impl Networks for SysInfo {
@@ -49,16 +48,41 @@ impl Networks for SysInfo {
         self.networks.refresh_list();
     }
 
-    fn get_networks_test(&self)->Vec<NetworkData> {
+    fn get_networks_info(&self)->Vec<NetworkData> {
         self.networks.iter().map(|(name,net)| {
             let ip_network = net.ip_networks();
             let mut ip_network_opt = None;
-            if ip_network.len() == Self::HAVE_IPv6_IPv4{
+            if ip_network.len() == Self::HAVE_IPV6_IPV4{
                 let temp = IpAddr::new(format!("\tIPv6:{}",ip_network[0].addr), format!("\tIPv4:{}",ip_network[1].addr));
                 ip_network_opt = Some(temp);
             }
 
             NetworkData { name: name.clone().to_owned(), ip_addr: ip_network_opt,mac_addr: net.mac_address()}
         }).collect()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use shared::error::AppResult;
+
+    use crate::system::SysInfo;
+
+    use super::Networks;
+
+    #[test]
+    fn test_get_networks_info()->AppResult<()>{
+        let si = SysInfo::new();
+        let network_infos = si.get_networks_info();
+        network_infos.iter().for_each(|e| {
+            assert_ne!("",e.get_name());
+            assert_ne!("",e.get_mac_addr().to_string());
+
+            if let Some(ip_addr) = e.get_ip_addr(){
+                assert_ne!("",ip_addr.ipv4);
+                assert_ne!("",ip_addr.ipv6);
+            }
+        });
+        Ok(())
     }
 }

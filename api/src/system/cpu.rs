@@ -17,3 +17,17 @@ impl Cpu for SysInfo {
         self.system.global_cpu_usage()
     }
 }
+
+#[cfg(test)]
+mod test{
+    use shared::error::AppResult;
+
+    use crate::system::{cpu::Cpu, SysInfo};
+
+    #[test]
+    fn test_get_test()->AppResult<()>{
+        let sysinfo= SysInfo::new();
+        assert_ne!(0.,sysinfo.get_cpu());
+        Ok(())
+    }
+}

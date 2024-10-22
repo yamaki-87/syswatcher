@@ -267,7 +267,7 @@ impl Tui {
 
     fn render_network_info(&self,area: Rect,buf: &mut Buffer){
 
-        let test = self.sysinfos.get_networks_test();
+        let test = self.sysinfos.get_networks_info();
         let line = Text::from(
             test.iter().map(|n|{
                 let mut temp= vec![Line::from(n.get_name().as_str().green().bold())];

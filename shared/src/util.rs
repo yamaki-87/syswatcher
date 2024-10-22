@@ -1,16 +1,5 @@
 use std::{ffi::OsStr, fmt};
 
-
-#[test]
-fn t(){
-    let s = r#""test""#.to_string();
-    println!("s = {}",&s);
-
-    let ss = s.trim_matches('"');
-
-    println!("new s = {}",ss);
-}
-
 pub struct DisplayOsStr<'a>(&'a OsStr);
 
 impl<'a> DisplayOsStr<'a> {
@@ -22,5 +11,21 @@ impl<'a> DisplayOsStr<'a> {
 impl<'a> fmt::Display for DisplayOsStr<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f,"{}",self.0.to_string_lossy())
+    }
+}
+
+#[cfg(test)]
+mod test{
+    use std::ffi::OsStr;
+
+    use crate::{error::AppResult, util::DisplayOsStr};
+
+    #[test]
+    fn test_displayosstr()->AppResult<()>{
+        let path = OsStr::new("C:\\Users\\user\\Documents");
+        let output = format!("{}",DisplayOsStr(path));
+        assert_eq!("C:\\Users\\user\\Documents",output);
+
+        Ok(())
     }
 }

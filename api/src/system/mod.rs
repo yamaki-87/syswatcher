@@ -182,37 +182,16 @@ pub fn supported() -> AppResult<()> {
 #[cfg(test)]
 mod test {
     use shared::error::AppResult;
-    use sysinfo::{Networks, System};
+
+    use super::SysInfo;
 
     #[test]
     fn swap() -> AppResult<()> {
-        let mut sys = System::new_all();
-        sys.refresh_all();
-        println!("free: {}", &sys.free_swap() / 1024 * 1024 * 1024);
-        println!("used: {}", &sys.used_swap());
-        println!("total: {}", &sys.total_swap() / (1024 * 1024 * 1024));
-
-        Ok(())
-    }
-
-    #[test]
-    fn network() -> AppResult<()> {
-        let network = Networks::new_with_refreshed_list();
-        for n in network.list() {
-            println!("{:?}", n);
-            println!("ip address = {:?}", n.1.ip_networks());
-            println!("mac address = {}", n.1.mac_address());
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn disk() -> AppResult<()> {
-        use sysinfo::Disks;
-        let disks = Disks::new_with_refreshed_list();
-        for d in disks.list() {
-            println!("{:?}", d);
-        }
+        let si = SysInfo::new();
+        let swap = si.get_swap();
+        println!("{swap}");
+        let total_swap = si.get_total_swap();
+        assert_ne!(0,total_swap);
         Ok(())
     }
 }

@@ -22,3 +22,26 @@ impl Memory for SysInfo {
     }
 
 }
+
+#[cfg(test)]
+mod test{
+    use shared::error::AppResult;
+
+    use crate::system::{memory::Memory, SysInfo};
+
+    #[test]
+    fn test_get_total_memory()->AppResult<()>{
+        let si = SysInfo::new();
+        assert_ne!(0,si.get_total_memory());
+
+        Ok(())
+    }
+    #[test]
+    fn test_get_memory()->AppResult<()>{
+        let si = SysInfo::new();
+        assert_ne!(0.,si.get_memory());
+
+        Ok(())
+    }
+
+}
