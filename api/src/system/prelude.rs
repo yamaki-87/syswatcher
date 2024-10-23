@@ -1,1 +1,1 @@
-pub use super::{cpu::Cpu,memory::Memory,disk::Disk,network::Networks};
+pub use super::{cpu::Cpu,memory::Memory,disk::Disk,network::Networks,swap::Swap,};
