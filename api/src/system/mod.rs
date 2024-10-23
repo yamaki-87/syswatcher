@@ -1,14 +1,13 @@
-use std::collections::HashMap;
-
 use shared::error::{AppError, AppResult};
-use sysinfo::{Disks, IpNetwork, MacAddr, Networks, Pid, Process, System};
+use sysinfo::{Disks, Networks,  System};
 
 pub mod cpu;
 pub mod disk;
 pub mod memory;
 pub mod network;
-pub mod prelude;
 pub mod swap;
+pub mod process;
+pub mod prelude;
 
 const UNKONW: &str = "unkonw";
 
@@ -40,12 +39,6 @@ impl SysInfo {
     pub fn refresh_all(&mut self) {
         self.system.refresh_all();
     }
-
-    pub fn get_processes(&self) -> &HashMap<Pid, Process> {
-        self.system.processes()
-    }
-
-
 }
 
 impl Default for SysInfo {
