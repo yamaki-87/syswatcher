@@ -23,9 +23,13 @@ api = {path = "./api"}
 shared = {path = "./shared"}
 async-trait = "0.1.83"
 futures = "0.3.31"
+flexi_logger = "0.29"
+log = "0.4"
 
 [dependencies]
 api.workspace = true
 ratatui.workspace = true
 tokio.workspace = true
 shared.workspace = true
+flexi_logger.workspace = true
+log.workspace = true 

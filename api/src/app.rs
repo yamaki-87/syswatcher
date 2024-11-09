@@ -1,4 +1,3 @@
-
 use async_trait::async_trait;
 use futures::StreamExt;
 use ratatui::{
@@ -6,7 +5,7 @@ use ratatui::{
     crossterm::event::{self, Event, EventStream, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     prelude::*,
-    style::{Modifier, Style,Stylize},
+    style::{Modifier, Style, Stylize},
     symbols::border::{self},
     text::{Line, Text},
     widgets::{
@@ -21,9 +20,8 @@ use strum::IntoEnumIterator;
 use tui_scrollview::{ScrollView, ScrollViewState};
 
 use crate::{
-    system::{SysData, SysInfo,prelude::*},
+    system::{prelude::*, SysData, SysInfo},
     widget::SelectedTab,
-    
 };
 
 macro_rules! title_block {
@@ -58,8 +56,24 @@ pub struct Tui {
     sysdata: SysData,
     state: AppState,
     selected_tab: SelectedTab,
+    is_clear:bool,
     scrollview_state: ScrollViewState,
 }
+
+
+impl Tui {
+    pub fn new(_terminal:DefaultTerminal,)->Self{
+        Self{
+            sysinfos:SysInfo::default(),
+            sysdata:SysData::default(),
+            state:AppState::default(),
+            selected_tab:SelectedTab::default(),
+            is_clear:bool::default(),
+            scrollview_state:ScrollViewState::default()
+        }
+    }
+}
+
 #[derive(Default, PartialEq, Eq)]
 pub enum AppState {
     #[default]
@@ -70,7 +84,7 @@ pub enum AppState {
 #[async_trait]
 pub trait Application {
     async fn run(mut self, terminal: &mut DefaultTerminal) -> AppResult<()>;
-    fn handle_events(&mut self,event:&Event) -> AppResult<()>;
+    fn handle_events(&mut self, event: &Event) -> AppResult<()>;
     fn handle_key_event(&mut self, key_event: &KeyEvent);
     fn update(&mut self);
 }
@@ -79,12 +93,12 @@ pub trait Application {
 impl Application for Tui {
     async fn run(mut self, terminal: &mut DefaultTerminal) -> AppResult<()> {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
-        let mut events= EventStream::new();
+        let mut events = EventStream::new();
 
         while self.is_running() {
             tokio::select! {
                 _ = interval.tick()=>{
-                    self.update(); 
+                    self.update();
                     terminal
                         .draw(|frame| frame.render_widget(&mut self, frame.area()))?;
                 }
@@ -97,7 +111,7 @@ impl Application for Tui {
         Ok(())
     }
 
-    fn handle_events(&mut self,event:&Event) -> AppResult<()> {
+    fn handle_events(&mut self, event: &Event) -> AppResult<()> {
         match event {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 self.handle_key_event(key_event)
@@ -111,8 +125,14 @@ impl Application for Tui {
         match key_event.code {
             KeyCode::Char('q') => self.exit(),
             KeyCode::Char('r') => self.refresh(),
-            KeyCode::Left => self.privious_tab(),
-            KeyCode::Tab | KeyCode::Right => self.next_tab(),
+            KeyCode::Left => {
+                self.is_clear = true;
+                self.privious_tab();
+            }
+            KeyCode::Tab | KeyCode::Right => {
+                self.is_clear = true;
+                self.next_tab();
+            }
             KeyCode::Char('G') if self.selected_tab == SelectedTab::Process => {
                 self.scrollview_state.scroll_to_bottom()
             }
@@ -130,7 +150,7 @@ impl Application for Tui {
     }
 
     fn update(&mut self) {
-        if !self.is_running(){
+        if !self.is_running() {
             return;
         }
 
@@ -165,8 +185,14 @@ impl Tui {
                 "Kernel Version: ".into(),
                 self.sysdata.get_kernel_ver().green()
             ),
-            line!("Total Memory: ".into(),self.sysinfos.get_total_memory().to_string().green()),
-            line!("Total Swap: ".into(),self.sysinfos.get_total_swap().to_string().green()),
+            line!(
+                "Total Memory: ".into(),
+                self.sysinfos.get_total_memory().to_string().green()
+            ),
+            line!(
+                "Total Swap: ".into(),
+                self.sysinfos.get_total_swap().to_string().green()
+            ),
         ]);
 
         Paragraph::new(os_info)
@@ -175,8 +201,14 @@ impl Tui {
             .render(area, buf);
     }
 
-    fn render_disk_info(&self,area: Rect,buf: &mut Buffer){
-        let disk_info = Text::from(self.sysinfos.get_disks_info().into_iter().map(Line::from).collect::<Vec<Line<'_>>>());
+    fn render_disk_info(&self, area: Rect, buf: &mut Buffer) {
+        let disk_info = Text::from(
+            self.sysinfos
+                .get_disks_info()
+                .into_iter()
+                .map(Line::from)
+                .collect::<Vec<Line<'_>>>(),
+        );
         let block = Block::bordered()
             .title(Title::from(Line::from(" Disk Info ".red().bold())))
             .border_set(border::THICK);
@@ -222,20 +254,20 @@ impl Tui {
             .render(area, buf);
     }
 
-    fn render_swap_info(&self,area: Rect,buf: &mut Buffer){
+    fn render_swap_info(&self, area: Rect, buf: &mut Buffer) {
         let swap = self.sysinfos.get_swap();
 
         Gauge::default()
-            .block(title_block!(" Swap Usage ",1))
+            .block(title_block!(" Swap Usage ", 1))
             .gauge_style(
                 Style::default()
                     .fg(ratatui::style::Color::Blue)
                     .bg(ratatui::style::Color::White)
-                    .add_modifier(Modifier::ITALIC)
+                    .add_modifier(Modifier::ITALIC),
             )
             .ratio(swap / 100.)
             .use_unicode(true)
-            .label(format!("{:.2}%",swap))
+            .label(format!("{:.2}%", swap))
             .render(area, buf);
     }
 
@@ -265,19 +297,24 @@ impl Tui {
             .render(area, buf);
     }
 
-    fn render_network_info(&self,area: Rect,buf: &mut Buffer){
-
+    fn render_network_info(&self, area: Rect, buf: &mut Buffer) {
         let test = self.sysinfos.get_networks_info();
         let line = Text::from(
-            test.iter().map(|n|{
-                let mut temp= vec![Line::from(n.get_name().as_str().green().bold())];
-                temp.push(line!("Mac Address:".into(),n.get_mac_addr().to_string().white()));
-                if let Some(ip) = n.get_ip_addr(){
-                    temp.push(Line::from(ip.ipv4.as_str()));
-                    temp.push(Line::from(ip.ipv6.as_str()));
-                }
-                temp
-            }).flatten().collect::<Vec<Line<'_>>>()
+            test.iter()
+                .map(|n| {
+                    let mut temp = vec![Line::from(n.get_name().as_str().green().bold())];
+                    temp.push(line!(
+                        "Mac Address:".into(),
+                        n.get_mac_addr().to_string().white()
+                    ));
+                    if let Some(ip) = n.get_ip_addr() {
+                        temp.push(Line::from(ip.ipv4.as_str()));
+                        temp.push(Line::from(ip.ipv6.as_str()));
+                    }
+                    temp
+                })
+                .flatten()
+                .collect::<Vec<Line<'_>>>(),
         );
 
         Paragraph::new(line)
@@ -293,15 +330,23 @@ impl Tui {
     fn render_processes_scrollview(&self, buf: &mut Buffer) {
         let area = buf.area;
 
-        let [numbers, widgets] =
-            Layout::horizontal([Constraint::Length(5), Constraint::Fill(1)]).areas(area);
+        let [header, main] =
+            Layout::vertical([Constraint::Percentage(7), Constraint::Percentage(93)]).areas(area);
+
+        let [_numbers, widgets] =
+            Layout::horizontal([Constraint::Length(5), Constraint::Fill(1)]).areas(main);
+        let header_text = Text::from(Line::from(vec!["PID".into(), "\t".into(), "NAME".into()]));
+
+        Paragraph::new(header_text)
+            .block(Block::bordered().border_set(border::THICK))
+            .render(header, buf);
 
         let line = Text::from(
             self.sysinfos
                 .get_processes()
-                .iter()
-                .map(|(pid, process)| format!("{} {:?}\n", pid.as_u32(), process.name()))
-                .collect::<String>(),
+                .into_iter()
+                .map(Line::from)
+                .collect::<Vec<Line<'_>>>(),
         );
 
         Paragraph::new(line)
@@ -313,6 +358,16 @@ impl Tui {
             )
             .wrap(Wrap { trim: false })
             .render(widgets, buf);
+    }
+
+    fn clear (&self,rect:Rect,buf:&mut Buffer){
+        for x in rect.left()..rect.right(){
+            for y in rect.top()..rect.bottom(){
+                if let Some(cell ) = buf.cell_mut((x,y)){
+                    cell.reset();
+                }
+            }
+        }
     }
 }
 
@@ -347,6 +402,10 @@ impl Widget for &mut Tui {
     where
         Self: Sized,
     {
+        if self.is_clear{
+            self.clear(area,buf);
+            self.is_clear = false;
+        }
         match self.selected_tab {
             SelectedTab::Main => {
                 let [tab_footer, main, bottom] = Layout::vertical([
@@ -360,7 +419,9 @@ impl Widget for &mut Tui {
                 let [mem_gauge_area, cpu_gauge_area, swap_gauge_area, disk_info_area] =
                     Layout::vertical([Constraint::Ratio(1, 4); 4]).areas(left);
 
-                let [os_info_area,network_info_area] = Layout::vertical([Constraint::Percentage(70),Constraint::Percentage(30)]).areas(right);
+                let [os_info_area, network_info_area] =
+                    Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+                        .areas(right);
 
                 self.render_tabs(tab_footer, buf);
                 self.draw_mem_info(mem_gauge_area, buf);
@@ -379,4 +440,3 @@ impl Widget for &mut Tui {
         }
     }
 }
-

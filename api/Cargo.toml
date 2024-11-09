@@ -13,3 +13,5 @@ async-trait.workspace = true
 sysinfo.workspace = true
 crossterm.workspace = true
 futures.workspace = true
+flexi_logger.workspace = true
+log.workspace = true 

@@ -1,3 +1,4 @@
+use log::error;
 use shared::error::{AppError, AppResult};
 use sysinfo::{Disks, Networks,  System};
 
@@ -163,6 +164,7 @@ pub fn supported() -> AppResult<()> {
     if sysinfo::IS_SUPPORTED_SYSTEM {
         Ok(())
     } else {
+        error!("Not Supported");
         Err(AppError::NoSupported)
     }
 }
