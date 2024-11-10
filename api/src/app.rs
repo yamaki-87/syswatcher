@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures::StreamExt;
+use log::info;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, EventStream, KeyCode, KeyEvent, KeyEventKind},
@@ -9,8 +10,7 @@ use ratatui::{
     symbols::border::{self},
     text::{Line, Text},
     widgets::{
-        block::{Position, Title},
-        Block, Gauge, Padding, Paragraph, Tabs, Widget, Wrap,
+        block::{Position, Title}, Block, Gauge, Padding, Paragraph, StatefulWidgetRef, Tabs, Widget, Wrap
     },
     DefaultTerminal,
 };
@@ -21,7 +21,7 @@ use tui_scrollview::{ScrollView, ScrollViewState};
 
 use crate::{
     system::{prelude::*, SysData, SysInfo},
-    widget::SelectedTab,
+    widget::{ProcessTab, SelectedTab},
 };
 
 macro_rules! title_block {
@@ -56,23 +56,23 @@ pub struct Tui {
     sysdata: SysData,
     state: AppState,
     selected_tab: SelectedTab,
-    is_clear:bool,
+    is_clear: bool,
     scrollview_state: ScrollViewState,
+    //process_view: ProcessTab,
 }
 
-
-impl Tui {
-    pub fn new(_terminal:DefaultTerminal,)->Self{
-        Self{
-            sysinfos:SysInfo::default(),
-            sysdata:SysData::default(),
-            state:AppState::default(),
-            selected_tab:SelectedTab::default(),
-            is_clear:bool::default(),
-            scrollview_state:ScrollViewState::default()
-        }
-    }
-}
+// impl Tui {
+//     pub fn new(_terminal: DefaultTerminal) -> Self {
+//         Self {
+//             sysinfos: SysInfo::default(),
+//             sysdata: SysData::default(),
+//             state: AppState::default(),
+//             selected_tab: SelectedTab::default(),
+//             is_clear: bool::default(),
+//             scrollview_state: ScrollViewState::default(),
+//         }
+//     }
+// }
 
 #[derive(Default, PartialEq, Eq)]
 pub enum AppState {
@@ -99,6 +99,10 @@ impl Application for Tui {
             tokio::select! {
                 _ = interval.tick()=>{
                     self.update();
+                    if self.is_clear{
+                        terminal.clear()?;
+                        self.is_clear= false;
+                    }
                     terminal
                         .draw(|frame| frame.render_widget(&mut self, frame.area()))?;
                 }
@@ -327,7 +331,7 @@ impl Tui {
             .render(area, buf);
     }
 
-    fn render_processes_scrollview(&self, buf: &mut Buffer) {
+    fn render_processes_scrollview(&self, buf: &mut Buffer){
         let area = buf.area;
 
         let [header, main] =
@@ -344,9 +348,6 @@ impl Tui {
         let line = Text::from(
             self.sysinfos
                 .get_processes()
-                .into_iter()
-                .map(Line::from)
-                .collect::<Vec<Line<'_>>>(),
         );
 
         Paragraph::new(line)
@@ -356,20 +357,11 @@ impl Tui {
                     .title(" Process ")
                     .title_alignment(Alignment::Center),
             )
-            .wrap(Wrap { trim: false })
-            .render(widgets, buf);
+            .wrap(Wrap { trim: false })     
+            .render(widgets,buf);
     }
 
-    fn clear (&self,rect:Rect,buf:&mut Buffer){
-        for x in rect.left()..rect.right(){
-            for y in rect.top()..rect.bottom(){
-                if let Some(cell ) = buf.cell_mut((x,y)){
-                    cell.reset();
-                }
-            }
-        }
-    }
-}
+}       
 
 //汎用
 impl Tui {
@@ -402,10 +394,6 @@ impl Widget for &mut Tui {
     where
         Self: Sized,
     {
-        if self.is_clear{
-            self.clear(area,buf);
-            self.is_clear = false;
-        }
         match self.selected_tab {
             SelectedTab::Main => {
                 let [tab_footer, main, bottom] = Layout::vertical([

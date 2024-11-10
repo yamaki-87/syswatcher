@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use shared::util::DisplayOsStr;
@@ -6,18 +7,27 @@ use sysinfo::{Pid, Process};
 use super::SysInfo;
 
 pub trait SysProcess {
-    fn get_processes(&self) -> Vec<String>;
+    fn get_processes(&self) -> String;
+    fn get_processes_map(&self) -> HashMap<Pid, Process>;
 }
 
+///TODO Process画面が崩れる
 impl SysProcess for SysInfo {
-    fn get_processes(&self) -> Vec<String> {
-        self.system
-            .processes()
-            .iter()
-            .map(|(pid, process)| {
-                format!("{}\t{}\n", pid.as_u32(), DisplayOsStr::new(process.name()))
-            })
-            .collect()
+    fn get_processes(&self) -> String {
+        let temp = BTreeMap::from_iter(
+            self.system
+                .processes()
+                .iter()
+                .map(|(pid, process)| (pid.as_u32(), process)),
+        );
+
+        temp.iter().map(|(pid,process) |{
+            format!("{}\t{}\n",pid,DisplayOsStr::new(process.name()))
+        }).collect()
+    }
+
+    fn get_processes_map(&self) -> HashMap<Pid, Process> {
+        todo!()
     }
 }
 

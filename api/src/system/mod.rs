@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use log::error;
 use shared::error::{AppError, AppResult};
-use sysinfo::{Disks, Networks,  System};
+use sysinfo::{Disks, Networks, Pid, Process, System};
 
 pub mod cpu;
 pub mod disk;
@@ -31,8 +33,8 @@ impl SysInfo {
         let networks = Networks::new_with_refreshed_list();
         Self {
             system: sys,
-            disks,
-            networks,
+            disks:disks,
+            networks:networks,
         }
     }
 
